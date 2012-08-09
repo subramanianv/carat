@@ -69,6 +69,11 @@ public class CaratMyDeviceActivity extends BaseVFActivity {
         initAppsView(inflater, c);
         setModelAndVersion(v);
 
+        
+        if (savedInstanceState != null){
+          viewIndex = savedInstanceState.getInt("viewId");
+        
+        }
         // TODO: Restore view
         /*
         if (o != null) {

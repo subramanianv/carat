@@ -165,6 +165,7 @@ public class CaratSuggestionsActivity extends BaseVFActivity {
 
         // ViewIndex is handled before. Now handle killView
         if (savedInstanceState != null){
+            viewIndex = savedInstanceState.getInt("viewId");
         int pos = savedInstanceState.getInt("position");
         restoreKillView(lv, pos);
         }
@@ -370,7 +371,6 @@ public class CaratSuggestionsActivity extends BaseVFActivity {
         // TODO Auto-generated method stub
         // TODO Missing kill view restoring
         outState.putInt("position", position);
-        outState.putInt("viewId", getViewId());
         super.onSaveInstanceState(outState);
     }
 

@@ -33,11 +33,16 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 	private View detailPage = null;
 	private View tv = null;
 	private int emptyIndex = -1;
+	private int position = -1;
 
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 	}
 	
+	
+	public CaratBugsOrHogsActivity(){
+	    this(Type.BUG);
+	}
 	
 	public CaratBugsOrHogsActivity(Type type){
 		if (type != null) {
@@ -51,6 +56,17 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 		}
 	}
 	
+	public void setType(Type type){
+	    this.activityType = type;
+	    if (type == Type.BUG) {
+            activityType = Type.BUG;
+            isBugsActivity = true;
+        } else {
+            activityType = Type.HOG;
+            isBugsActivity = false;
+        }
+	    refresh();
+	}
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -74,7 +90,13 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 		initDetailView(v);
 
 		if (savedInstanceState != null){
+		    viewIndex = savedInstanceState.getInt("viewId");
 		int pos = savedInstanceState.getInt("position");
+		boolean bug = savedInstanceState.getBoolean("bug");
+		if (bug)
+		    this.setType(Type.BUG);
+		else
+		    this.setType(Type.HOG);
             if (pos != -1) {
                 /*
                  * Fix up detail page
@@ -144,6 +166,7 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 			@Override
 			public void onItemClick(AdapterView<?> a, View v, int position,
 					long id) {
+			    CaratBugsOrHogsActivity.this.position = position;
 				Object o = lv.getItemAtPosition(position);
 				SimpleHogBug fullObject = (SimpleHogBug) o;
 				// View target = findViewById(R.id.hogsGraphView);
@@ -200,7 +223,20 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 		}
 	}
 
-	/**
+	
+	
+	/* (non-Javadoc)
+     * @see edu.berkeley.cs.amplab.carat.android.ui.BaseVFActivity#onSaveInstanceState(android.os.Bundle)
+     */
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean("bug", isBugsActivity);
+        outState.putInt("position", position);
+        super.onSaveInstanceState(outState);
+    }
+
+
+    /**
 	 * (non-Javadoc)
 	 * 
 	 * @see android.app.Activity#onResume()
