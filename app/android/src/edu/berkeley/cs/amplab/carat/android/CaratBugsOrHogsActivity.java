@@ -9,8 +9,8 @@ import edu.berkeley.cs.amplab.carat.android.ui.FlipperBackListener;
 import edu.berkeley.cs.amplab.carat.android.ui.LocalizedWebView;
 import edu.berkeley.cs.amplab.carat.android.ui.SwipeListener;
 
+import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -36,10 +36,12 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		Intent i = getIntent();
-		if (i != null) {
-			String a = i.getAction();
-			if (a.equals(CaratMainActivity.ACTION_BUGS)) {
+	}
+	
+	
+	public CaratBugsOrHogsActivity(Type type){
+		if (type != null) {
+			if (type == Type.BUG) {
 				activityType = Type.BUG;
 				isBugsActivity = true;
 			} else {
@@ -47,63 +49,67 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 				isBugsActivity = false;
 			}
 		}
-		setContentView(R.layout.hogs);
-		vf = (ViewFlipper) findViewById(R.id.flipper);
-		View baseView = findViewById(android.R.id.list);
+	}
+	
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+            Bundle savedInstanceState) {
+        View v = inflater.inflate(R.layout.hogs, container, false);
+        final Context c = this.getActivity().getApplicationContext();
+		vf = (ViewFlipper) v.findViewById(R.id.flipper);
+		View baseView = v.findViewById(android.R.id.list);
 		baseView.setOnTouchListener(SwipeListener.instance);
 		vf.setOnTouchListener(SwipeListener.instance);
 		baseViewIndex = vf.indexOfChild(baseView);
-
-		LayoutInflater mInflater = LayoutInflater.from(getApplicationContext());
-		tv = mInflater.inflate(R.layout.emptyactions, null);
+		
+		tv = inflater.inflate(R.layout.emptyactions, null);
 		if (tv != null) {
 			vf.addView(tv);
 			emptyIndex = vf.indexOfChild(tv);
 		}
 		// initBugsView();
 		// initGraphView();
-		initGraphChart();
-		initDetailView();
+		initGraphChart(v, inflater, c);
+		initDetailView(v);
 
-		Object o = getLastNonConfigurationInstance();
-		if (o != null) {
-			CaratBugsOrHogsActivity previous = (CaratBugsOrHogsActivity) o;
-			TextView pn = (TextView) previous.detailPage
-					.findViewById(R.id.name);
-			ImageView pi = (ImageView) previous.detailPage
-					.findViewById(R.id.appIcon);
-			ProgressBar pp = (ProgressBar) previous.detailPage
-					.findViewById(R.id.confidenceBar);
-
-			((TextView) detailPage.findViewById(R.id.name)).setText(pn
-					.getText());
-			((ImageView) detailPage.findViewById(R.id.appIcon))
-					.setImageDrawable(pi.getDrawable());
-			((ProgressBar) detailPage.findViewById(R.id.confidenceBar))
-					.setProgress(pp.getProgress());
-
-			double[] xVals = previous.w.getXVals();
-			double[] yVals = previous.w.getYVals();
-			double[] xValsWithout = previous.w.getXValsWithout();
-			double[] yValsWithout = previous.w.getYValsWithout();
-			String appName = previous.w.getAppName();
-			w.setParams(activityType, appName, xVals, yVals, xValsWithout,
-					yValsWithout);
-			w.postInvalidate();
+		if (savedInstanceState != null){
+		int pos = savedInstanceState.getInt("position");
+            if (pos != -1) {
+                /*
+                 * Fix up detail page
+                 */
+                final ListView lv = (ListView) v
+                        .findViewById(android.R.id.list);
+                Object o = lv.getItemAtPosition(pos);
+                SimpleHogBug fullObject = (SimpleHogBug) o;
+                if (fullObject != null) {
+                    String label = CaratApplication.labelForApp(c,
+                            fullObject.getAppName());
+                    Drawable icon = CaratApplication.iconForApp(c,
+                            fullObject.getAppName());
+                    ((TextView) detailPage.findViewById(R.id.name))
+                            .setText(label);
+                    ((ImageView) detailPage.findViewById(R.id.appIcon))
+                            .setImageDrawable(icon);
+                    ((ProgressBar) detailPage.findViewById(R.id.confidenceBar))
+                            .setProgress((int) (fullObject.getwDistance() * 100));
+                    w.setHogsBugs(fullObject, label, isBugsActivity);
+                }
+            }
 		}
 
 		if (viewIndex == 0)
 			vf.setDisplayedChild(baseViewIndex);
 		else
 			vf.setDisplayedChild(viewIndex);
+		return v;
 	}
 
-	private void initGraphChart() {
-		LayoutInflater inflater = (LayoutInflater) getApplicationContext()
-				.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+	private void initGraphChart(View v, LayoutInflater inflater, final Context c) {
 		detailPage = inflater.inflate(R.layout.graph, null);
 		ViewGroup g = (ViewGroup) detailPage;
-		w = new DrawView(getApplicationContext());
+		w = new DrawView(c);
 		g.addView(w);
 		vf.addView(detailPage);
 
@@ -133,7 +139,7 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 		detailPage.setOnTouchListener(new FlipperBackListener(this, vf,
 				baseViewIndex, true));
 
-		final ListView lv = (ListView) findViewById(android.R.id.list);
+		final ListView lv = (ListView) v.findViewById(android.R.id.list);
 		lv.setOnItemClickListener(new OnItemClickListener() {
 			@Override
 			public void onItemClick(AdapterView<?> a, View v, int position,
@@ -143,9 +149,9 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 				// View target = findViewById(R.id.hogsGraphView);
 				View target = detailPage;
 				String label = CaratApplication.labelForApp(
-						getApplicationContext(), fullObject.getAppName());
+						c, fullObject.getAppName());
 				Drawable icon = CaratApplication.iconForApp(
-						getApplicationContext(), fullObject.getAppName());
+						c, fullObject.getAppName());
 				((TextView) detailPage.findViewById(R.id.name)).setText(label);
 				((ImageView) detailPage.findViewById(R.id.appIcon))
 						.setImageDrawable(icon);
@@ -158,8 +164,8 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 		});
 	}
 
-	private void initDetailView() {
-		LocalizedWebView webview = (LocalizedWebView) findViewById(R.id.detailView);
+	private void initDetailView(View v) {
+		LocalizedWebView webview = (LocalizedWebView) v.findViewById(R.id.detailView);
 
 		webview.loadUrl("file:///android_asset/detailinfo.html");
 		webview.setOnTouchListener(new FlipperBackListener(this, vf, vf
@@ -167,8 +173,13 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 	}
 
 	public void refresh() {
-		CaratApplication app = (CaratApplication) getApplication();
-		final ListView lv = (ListView) findViewById(android.R.id.list);
+	    Activity a = getActivity();
+	    if (a == null)
+	        return;
+		CaratApplication app = (CaratApplication) a.getApplication();
+		if (app == null)
+		    return;
+		final ListView lv = (ListView) getView().findViewById(android.R.id.list);
 		if (isBugsActivity)
 			lv.setAdapter(new HogsBugsAdapter(app, CaratApplication.s
 					.getBugReport()));
@@ -195,30 +206,12 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 	 * @see android.app.Activity#onResume()
 	 */
 	@Override
-	protected void onResume() {
+    public void onResume() {
 		if (isBugsActivity)
 			CaratApplication.setBugs(this);
 		else
 			CaratApplication.setHogs(this);
 		refresh();
 		super.onResume();
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * edu.berkeley.cs.amplab.carat.android.ui.BaseVFActivity#onBackPressed()
-	 */
-	@Override
-	public void onBackPressed() {
-		if (vf.getDisplayedChild() != baseViewIndex
-				&& vf.getDisplayedChild() != emptyIndex) {
-			vf.setOutAnimation(CaratMainActivity.outtoRight);
-			vf.setInAnimation(CaratMainActivity.inFromLeft);
-			vf.setDisplayedChild(baseViewIndex);
-			viewIndex = baseViewIndex;
-		} else
-			finish();
 	}
 }

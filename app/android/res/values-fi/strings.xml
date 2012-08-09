@@ -36,7 +36,7 @@
     <string name="tab_about">Tietoja</string>
     
     <!-- Updating etc -->
-    <string name="samplesreported"> mittausta lähetetty</string>
+    <string name="samplesreported">mittausta läh.</string>
     <string name="updating">Päivitetään</string>
     <string name="updated">(Päivitetty </string>
     <string name="ago">sitten)</string>

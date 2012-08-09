@@ -4,31 +4,31 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import com.actionbarsherlock.app.SherlockFragmentActivity;
+import com.actionbarsherlock.widget.ShareActionProvider;
 import com.flurry.android.FlurryAgent;
 import com.zubhium.ZubhiumSDK;
-import com.zubhium.interfaces.ZubhiumListener;
-import com.zubhium.utils.ZubhiumError;
 
+import com.actionbarsherlock.app.ActionBar;
+import com.actionbarsherlock.app.ActionBar.Tab;
+import com.actionbarsherlock.view.Menu;
+import com.actionbarsherlock.view.MenuItem;
+
+import android.content.Intent;
+import android.os.Bundle;
+
+import edu.berkeley.cs.amplab.carat.android.CaratApplication.Type;
 import edu.berkeley.cs.amplab.carat.android.protocol.CommsThread;
 import edu.berkeley.cs.amplab.carat.android.sampling.SamplingLibrary;
-import android.app.TabActivity;
-import android.content.Intent;
+import edu.berkeley.cs.amplab.carat.android.ui.MultiTabListener;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
-import android.content.res.Resources;
-import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.MenuItem.OnMenuItemClickListener;
 import android.view.View;
 import android.view.Window;
 import android.view.animation.AccelerateInterpolator;
 import android.view.animation.Animation;
 import android.view.animation.TranslateAnimation;
-import android.widget.TabHost;
-import android.widget.TabHost.OnTabChangeListener;
 
 /**
  * Carat Android App Main Activity. Is loaded right after CaratApplication.
@@ -38,7 +38,7 @@ import android.widget.TabHost.OnTabChangeListener;
  * @author Eemil Lagerspetz
  * 
  */
-public class CaratMainActivity extends TabActivity {
+public class CaratMainActivity extends SherlockFragmentActivity {
     // Log tag
     private static final String TAG = "CaratMain";
 
@@ -55,7 +55,8 @@ public class CaratMainActivity extends TabActivity {
     //private UiRefreshThread uiRefreshThread = null;
 
     // Hold the tabs of the UI.
-    public static TabHost tabHost = null;
+    public static ActionBar actionBar = null;
+    private static int selectedTab = 0;
 
     // Zubhium SDK
     ZubhiumSDK sdk = null;
@@ -65,12 +66,22 @@ public class CaratMainActivity extends TabActivity {
     private static final String FLURRY_KEYFILE = "flurry.properties";
 
     private MenuItem feedbackItem = null;
+    private MenuItem wifiOnly = null;
 
     private String fullVersion = null;
+    
+    /* Fields required for buttons: */
+    private static CaratMyDeviceActivity myDevice = null;
+    private static CaratBugsOrHogsActivity bugsActivity = null;
+    private static CaratBugsOrHogsActivity hogsActivity = null;
+    private static CaratSuggestionsActivity actionList = null;
+    private static CaratAboutActivity aboutActivity = null;
 
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        //setTheme(R.style.Theme_Sherlock_Light_DarkActionBar);
+        setTheme(R.style.Theme_Sherlock_Light_DarkActionBar_ForceOverflow);
         super.onCreate(savedInstanceState);
         // If we want a progress bar for loading some screens at the top of the
         // title bar
@@ -79,6 +90,9 @@ public class CaratMainActivity extends TabActivity {
         getWindow().requestFeature(Window.FEATURE_PROGRESS);
         setContentView(R.layout.main);
 
+        /*
+         * Title stuff:
+         */
         fullVersion = getString(R.string.app_name) + " "
                 + getString(R.string.version_name);
 
@@ -104,86 +118,132 @@ public class CaratMainActivity extends TabActivity {
             sdk.registerUpdateReceiver(CaratMainActivity.this);
         }
         setTitleNormal();
-
-        Resources res = getResources(); // Resource object to get Drawables
-        tabHost = getTabHost(); // The activity TabHost
-        TabHost.TabSpec spec; // Resusable TabSpec for each tab
-        Intent intent; // Reusable Intent for each tab
-
-        // Create an Intent to launch an Activity for the tab (to be reused)
-
-        // Initialize a TabSpec for each tab and add it to the TabHost
-        intent = new Intent().setClass(this, CaratSuggestionsActivity.class);
-        spec = tabHost
-                .newTabSpec("actions")
-                .setIndicator(getString(R.string.tab_actions),
-                        res.getDrawable(R.drawable.ic_tab_actions))
-                .setContent(intent);
-        tabHost.addTab(spec);
+        
 
         /*
-         * intent = new Intent().setClass(this, SampleDebugActivity.class); spec
-         * = tabHost .newTabSpec("Sample")
-         * .setIndicator(getString(R.string.tab_sample),
-         * res.getDrawable(R.drawable.ic_tab_actions)) .setContent(intent);
-         * tabHost.addTab(spec);
+         * Tab Stuff:
          */
-        intent = new Intent().setClass(this, CaratMyDeviceActivity.class);
-        spec = tabHost
-                .newTabSpec("mydevice")
-                .setIndicator(getString(R.string.tab_my_device),
-                        res.getDrawable(R.drawable.ic_tab_mydevice))
-                .setContent(intent);
-        tabHost.addTab(spec);
+        
+        actionBar = getSupportActionBar();
+        actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
+        //actionBar.setDisplayShowTitleEnabled(false);
 
-        // Do the same for the other tabs
-        intent = new Intent().setClass(this, CaratBugsOrHogsActivity.class);
-        intent.setAction(ACTION_BUGS);
-        spec = tabHost
-                .newTabSpec(ACTION_BUGS)
-                .setIndicator(getString(R.string.tab_bugs),
-                        res.getDrawable(R.drawable.ic_tab_bugs))
-                .setContent(intent);
-        tabHost.addTab(spec);
+        String ac = getString(R.string.tab_actions);
+        String md = getString(R.string.tab_my_device);
+        String b = getString(R.string.tab_bugs);
+        String h = getString(R.string.tab_hogs);
+        String a = getString(R.string.tab_about);
 
-        intent = new Intent().setClass(this, CaratBugsOrHogsActivity.class);
-        intent.setAction(ACTION_HOGS);
-        spec = tabHost.newTabSpec(ACTION_HOGS)
-                .setIndicator(getString(R.string.tab_hogs), res.getDrawable(R.drawable.ic_tab_hogs))
-                .setContent(intent);
-        tabHost.addTab(spec);
+        
+        actionList = new CaratSuggestionsActivity();
+        myDevice = new CaratMyDeviceActivity();
+        bugsActivity = new CaratBugsOrHogsActivity(Type.BUG);
+        hogsActivity = new CaratBugsOrHogsActivity(Type.HOG);
+        aboutActivity = new CaratAboutActivity();
+        
+        MultiTabListener l = new MultiTabListener();
+        l.addTab(ac, actionList);
+        l.addTab(md, myDevice);
+        l.addTab(b, bugsActivity);
+        l.addTab(h, hogsActivity);
+        l.addTab(a, aboutActivity);
+        
+        // Initialize a TabSpec for each tab and add it to the TabHost
+        //CaratSuggestionsActivity.class);
+        //CaratMyDeviceActivity.class);
+        //CaratBugsOrHogsActivity.class);
+        //CaratBugsOrHogsActivity.class);
+        //CaratAboutActivity.class);
+        
 
-        intent = new Intent().setClass(this, CaratAboutActivity.class);
-        spec = tabHost
-                .newTabSpec(getString(R.string.tab_about))
-                .setIndicator(getString(R.string.tab_about), res.getDrawable(R.drawable.ic_tab_about))
-                .setContent(intent);
-        tabHost.addTab(spec);
+        Tab actions = actionBar.newTab().setText(ac).setTabListener(l)
+                .setIcon(R.drawable.ic_tab_actions);
+        Tab device = actionBar.newTab().setText(md).setTabListener(l)
+                .setIcon(R.drawable.ic_tab_mydevice);
+        Tab bugs = actionBar.newTab().setText(b).setTabListener(l)
+                .setIcon(R.drawable.ic_tab_bugs);
+        Tab hogs = actionBar.newTab().setText(h).setTabListener(l)
+                .setIcon(R.drawable.ic_tab_hogs);
+        Tab about = actionBar.newTab().setText(a).setTabListener(l)
+                .setIcon(R.drawable.ic_tab_about);
 
-        // Bind animations to tab changes:
-        tabHost.setOnTabChangedListener(new OnTabChangeListener() {
-            int oldTab = tabHost.getCurrentTab();
+        actionBar.addTab(actions);
+        actionBar.addTab(device);
+        actionBar.addTab(bugs);
+        actionBar.addTab(hogs);
+        actionBar.addTab(about);
+        
+        selectedTab = actionBar.getSelectedNavigationIndex();
+    }
+    
+    public static void nextTab(){
+        selectedTab = actionBar.getSelectedNavigationIndex();
+        if (selectedTab < 4){
+            //animateFirst(selectedTab, selectedTab+1);
+            selectedTab+=1;
+            actionBar.setSelectedNavigationItem(selectedTab);
+            //animateSecond(selectedTab-1, selectedTab);
+        }
+    }
+    
+    public static void previousTab(){
+        selectedTab = actionBar.getSelectedNavigationIndex();
+        if (selectedTab > 0){
+            //animateFirst(selectedTab, selectedTab-1);
+            selectedTab-=1;
+            actionBar.setSelectedNavigationItem(selectedTab);
+            //animateSecond(selectedTab+1, selectedTab);
+        }
+    }
+    
+    private static void animateFirst(int tab1, int tab2) {
+        Animation a1 = outtoLeft;
+        if (tab1 > tab2) {
+            a1 = outtoRight;
+        }
 
-            @Override
-            public void onTabChanged(String tabId) {
-                int newTab = tabHost.getCurrentTab();
-                View old = tabHost.getTabContentView().getChildAt(oldTab);
-                View newView = tabHost.getTabContentView().getChildAt(newTab);
-                Log.d("onTabChanged", "oldTab=" + oldTab + " old=" + old
-                        + " newTabId=" + tabId + " newTab=" + newTab
-                        + " newView=" + newView);
-                /*
-                 * if (old != null && newView != null) { if (oldTab < newTab) {
-                 * old.setAnimation(outtoLeft);
-                 * newView.setAnimation(inFromRight); } else {
-                 * newView.setAnimation(inFromLeft);
-                 * old.setAnimation(outtoRight); } }
-                 */
-                oldTab = newTab;
-            }
-        });
+        switch (tab1) {
+        case 0:
+            actionList.getView().setAnimation(a1);
+            break;
+        case 1:
+            myDevice.getView().setAnimation(a1);
+            break;
+        case 2:
+            bugsActivity.getView().setAnimation(a1);
+            break;
+        case 3:
+            hogsActivity.getView().setAnimation(a1);
+            break;
+        case 4:
+            aboutActivity.getView().setAnimation(a1);
+            break;
+        }
+    }
 
-        tabHost.setCurrentTab(0);
+    private static void animateSecond(int tab1, int tab2) {
+        Animation a2 = inFromRight;
+        if (tab1 > tab2) {
+            a2 = inFromLeft;
+        }
+
+        switch (tab2) {
+        case 0:
+            actionList.getView().setAnimation(a2);
+            break;
+        case 1:
+            myDevice.getView().setAnimation(a2);
+            break;
+        case 2:
+            bugsActivity.getView().setAnimation(a2);
+            break;
+        case 3:
+            hogsActivity.getView().setAnimation(a2);
+            break;
+        case 4:
+            aboutActivity.getView().setAnimation(a2);
+            break;
+        }
     }
 
     public void setTitleNormal() {
@@ -195,11 +255,11 @@ public class CaratMainActivity extends TabActivity {
     }
 
     public void setTitleUpdating(String what) {
-        this.setTitle(fullVersion + " - " + getString(R.string.updating)+" "+what);
+        this.setTitle(/*fullVersion + " - " + */getString(R.string.updating)+" "+what);
     }
 
     public void setTitleUpdatingFailed(String what) {
-        this.setTitle(fullVersion + " - " +getString(R.string.didntget)+" "+ what);
+        this.setTitle(/*fullVersion + " - " +*/getString(R.string.didntget)+" "+ what);
     }
 
     /*
@@ -243,13 +303,6 @@ public class CaratMainActivity extends TabActivity {
         // TODO Auto-generated method stub
         super.onStop();
         FlurryAgent.onEndSession(getApplicationContext());
-    }
-
-    public static void changeTab(int tab) {
-        if (tabHost == null)
-            return;
-        if (tabHost.getChildCount() > tab && tab >= 0)
-            tabHost.setCurrentTab(tab);
     }
 
     /**
@@ -397,103 +450,120 @@ public class CaratMainActivity extends TabActivity {
     }
 
     /**
-     * Show Zubhium menu here.
+     * Menus
      */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-    	/*MenuItem tweetItem = menu.add(R.string.tweet);
-        tweetItem.setOnMenuItemClickListener(new OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem arg0) {
-            	String tweet = "My J-Score is "+ CaratApplication.getJscore() +"!\nWhat's yours?\nFind out here:";
-            	String tweetUrl = "https://twitter.com/intent/tweet?text="+Uri.encode(tweet)+"&url="+Uri.encode("http://carat.cs.berkeley.edu/");
-            	Uri uri = Uri.parse(tweetUrl);
-            	startActivity(new Intent(Intent.ACTION_VIEW, uri));
-                return true;
-            }
-        });*/
-        /*
-        MenuItem facebookItem = menu.add(R.string.facebook);
-        facebookItem.setOnMenuItemClickListener(new OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem arg0) {
-                }
-            }
-        );*/
+        // Inflate your menu.
+        getSupportMenuInflater().inflate(R.menu.share_action_provider, menu);
+
+        // Set file with share history to the provider and set the share intent.
+        MenuItem actionItem = menu
+                .findItem(R.id.menu_item_share_action_provider_action_bar);
+        ShareActionProvider actionProvider = (ShareActionProvider) actionItem
+                .getActionProvider();
+        actionProvider
+                .setShareHistoryFileName(ShareActionProvider.DEFAULT_SHARE_HISTORY_FILE_NAME);
+        // Note that you can set/change the intent any time,
+        // say when the user has selected an image.
+        actionProvider.setShareIntent(createShareIntent());
         
-        final MenuItem wifiOnly = menu.add(R.string.wifionly);
-        //wifiOnly.setCheckable(true);
-        //wifiOnly.setChecked(useWifiOnly);
-        final SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(CaratMainActivity.this);
-        if (p.getBoolean(CaratApplication.PREFERENCE_WIFI_ONLY, false))
+
+        wifiOnly = menu.findItem(R.id.menu_wifionly);
+        wifiOnly.setCheckable(true);
+        final SharedPreferences p = PreferenceManager
+                .getDefaultSharedPreferences(CaratMainActivity.this);
+        boolean useWifiOnly = p.getBoolean(CaratApplication.PREFERENCE_WIFI_ONLY, false);
+        if (useWifiOnly)
             wifiOnly.setTitle(R.string.wifionlyused);
-        wifiOnly.setOnMenuItemClickListener(new OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem arg0) {
-                boolean useWifiOnly = p.getBoolean(CaratApplication.PREFERENCE_WIFI_ONLY, false);
-                if (useWifiOnly){
-                    p.edit()
-                    .putBoolean(CaratApplication.PREFERENCE_WIFI_ONLY,
-                            false).commit();
-                    //wifiOnly.setChecked(false);
-                    wifiOnly.setTitle(R.string.wifionly);
-                }else{
-                    p.edit()
-                    .putBoolean(CaratApplication.PREFERENCE_WIFI_ONLY,
-                            true).commit();
-                    //wifiOnly.setChecked(true);
-                    wifiOnly.setTitle(R.string.wifionlyused);
-                }
-                return true;
-            }
-        });
-        
-        MenuItem shareItem = menu.add(R.string.share);
-        shareItem.setOnMenuItemClickListener(new OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem arg0) {
-                int jscore = CaratApplication.getJscore();
-                Intent sendIntent = new Intent(Intent.ACTION_SEND);
-                sendIntent.setType("text/plain");
-                sendIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.myjscoreis)+" "+jscore);
-                sendIntent.putExtra(Intent.EXTRA_TEXT, getString(R.string.sharetext1)+" "+jscore+getString(R.string.sharetext2));
-                startActivity(Intent.createChooser(sendIntent, getString(R.string.sharewith)));
-                return true;
-            }
-        });
-        
-        feedbackItem = menu.add(R.string.feedback);
-        feedbackItem.setOnMenuItemClickListener(new MenuListener());
+        wifiOnly.setChecked(useWifiOnly);
+        feedbackItem = menu.findItem(R.id.menu_feedback);
         return true;
     }
 
-    /**
-     * Class to handle Zubhium feedback better. The only problem is that on
-     * pressing cancel in the feedback dialog, the orientation is not freed
-     * again.
+    /*
+     * (non-Javadoc)
      * 
-     * @author Eemil Lagerspetz
-     * 
+     * @see
+     * com.actionbarsherlock.app.SherlockFragmentActivity#onOptionsItemSelected
+     * (com.actionbarsherlock.view.MenuItem)
      */
-    private class MenuListener implements OnMenuItemClickListener, ZubhiumListener{
-
-        @Override
-        public boolean onMenuItemClick(MenuItem arg0) {
-            if (sdk != null){
-                //CaratMainActivity.this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);
-                sdk.openFeedbackDialog(CaratMainActivity.this, this);
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item == wifiOnly) {
+            final SharedPreferences p = PreferenceManager
+                    .getDefaultSharedPreferences(CaratMainActivity.this);
+            boolean useWifiOnly = p.getBoolean(
+                    CaratApplication.PREFERENCE_WIFI_ONLY, false);
+            if (useWifiOnly) {
+                p.edit()
+                        .putBoolean(CaratApplication.PREFERENCE_WIFI_ONLY,
+                                false).commit();
+                item.setChecked(false);
+                item.setTitle(R.string.wifionly);
+            } else {
+                p.edit()
+                        .putBoolean(CaratApplication.PREFERENCE_WIFI_ONLY, true)
+                        .commit();
+                item.setChecked(true);
+                item.setTitle(R.string.wifionlyused);
             }
-            return true;
+        } else if (item == feedbackItem) {
+            sdk.openFeedbackDialog(CaratMainActivity.this);
         }
-        
-        @Override
-        public void onZubhiumActionCompleted() {
-            //CaratMainActivity.this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
-        }
+        return super.onOptionsItemSelected(item);
+    }
 
-        @Override
-        public void onZubhiumError(ZubhiumError arg0) {
-            //CaratMainActivity.this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+    private Intent createShareIntent() {
+        int jscore = CaratApplication.getJscore();
+        Intent sendIntent = new Intent(Intent.ACTION_SEND);
+        sendIntent.setType("text/plain");
+        sendIntent.putExtra(Intent.EXTRA_SUBJECT,
+                getString(R.string.myjscoreis) + " " + jscore);
+        sendIntent.putExtra(Intent.EXTRA_TEXT, getString(R.string.sharetext1)
+                + " " + jscore + getString(R.string.sharetext2));
+        return sendIntent;
+    }
+
+    public void viewJscoreInfo(View v){
+        myDevice.viewJscoreInfo(v);
+    }
+    
+    public void viewProcessList(View v){
+        myDevice.viewProcessList(v, getApplicationContext());
+    }
+
+    public void showAppInfo(View v) {myDevice.showAppInfo(v, getApplicationContext());}
+    public void showOsInfo(View v) {myDevice.showOsInfo(v, getApplicationContext());}
+    public void showDeviceInfo(View v) {myDevice.showDeviceInfo(v, getApplicationContext());}
+    public void showMemoryInfo(View v) { myDevice.showMemoryInfo(v);}
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see android.support.v4.app.FragmentActivity#onBackPressed()
+     */
+    @Override
+    public void onBackPressed() {
+        int idx = actionBar.getSelectedNavigationIndex();
+
+        boolean shouldFinish = true;
+
+        switch (idx) {
+        case 0:
+            shouldFinish = actionList.onBackPressed();
+            break;
+        case 1:
+            shouldFinish = myDevice.onBackPressed();
+            break;
+        case 2:
+            shouldFinish = bugsActivity.onBackPressed();
+            break;
+        case 3:
+            shouldFinish = hogsActivity.onBackPressed();
+            break;
         }
+        if (shouldFinish)
+            super.onBackPressed();
     }
 }

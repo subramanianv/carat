@@ -29,11 +29,11 @@ public class SwipeListener extends BaseSwipeListener {
 
 		if (xDiff > w / 3.0 && xDiff > yDiff) {
 			// moved horizontally. Lets change tabs to the right direction:
-			if (left && currentTab > 0) {
-				CaratMainActivity.changeTab(currentTab - 1);
+			if (left) {
+				CaratMainActivity.previousTab();
 				return true;
 			} else if (!left) {
-				CaratMainActivity.changeTab(currentTab + 1);
+				CaratMainActivity.nextTab();
 				return true;
 			} else
 				return false;

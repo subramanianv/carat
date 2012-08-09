@@ -49,7 +49,7 @@
     <string name="tab_about">About</string>
     
     <!-- Updating etc -->
-    <string name="samplesreported">Samples reported</string>
+    <string name="samplesreported">samples sent</string>
     <string name="updating">Updating</string>
     <string name="updated">(Updated </string>
     <string name="ago">ago)</string>

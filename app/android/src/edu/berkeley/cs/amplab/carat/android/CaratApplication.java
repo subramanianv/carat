@@ -20,6 +20,7 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.drawable.Drawable;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 
 /**
@@ -205,9 +206,12 @@ public class CaratApplication extends Application {
         if (myDevice != null) {
             main.runOnUiThread(new Runnable() {
                 public void run() {
-                    TextView t = (TextView) myDevice.findViewById(viewId);
+                    View v = myDevice.getView();
+                    if (v != null){
+                    TextView t = (TextView) v.findViewById(viewId);
                     if (t != null)
                         t.setText(text);
+                    }
                 }
 
             });
