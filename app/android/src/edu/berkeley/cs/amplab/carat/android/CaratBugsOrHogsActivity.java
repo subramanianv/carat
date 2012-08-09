@@ -202,7 +202,10 @@ public class CaratBugsOrHogsActivity extends BaseVFActivity {
 		CaratApplication app = (CaratApplication) a.getApplication();
 		if (app == null)
 		    return;
-		final ListView lv = (ListView) getView().findViewById(android.R.id.list);
+		View v = getView();
+		if (v == null)
+		    return;
+		final ListView lv = (ListView) v.findViewById(android.R.id.list);
 		if (isBugsActivity)
 			lv.setAdapter(new HogsBugsAdapter(app, CaratApplication.s
 					.getBugReport()));
